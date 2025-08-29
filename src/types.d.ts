@@ -14,6 +14,7 @@ export interface Artifact {
   mode: 'debug' | 'release';
   platform: Exclude<TargetPlatform, 'macos'> | 'darwin';
   arch: string;
+  bundle: string;
   ext: string;
   version: string;
 }
