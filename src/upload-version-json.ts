@@ -126,100 +126,94 @@ export async function uploadVersionJSON(
   console.log("asstes by bundle deb: "+ JSON.stringify(assetsByBundle.get("deb")));
   console.log("asstes by bundle rpm: "+ JSON.stringify(assetsByBundle.get("rpm")));
  
-  for (const [bundle, value] of assetsByBundle) {
-      for (const bundleAsset of value) {
-        console.log("bundleAssets: " + bundle + " value: " + JSON.stringify(bundleAsset));
+  for (const [bundleType, bundleAssets] of assetsByBundle) {
+      console.log("bundleAssets: " + bundleType + " value: " + JSON.stringify(bundleAssets));
+      const signatureFiles = bundleAssets.filter((asset) => {
+        return asset.assetName.endsWith('.sig');
+      });
+      function signaturePriority(signaturePath: string) {
+        const priorities = unzippedSig ? ['.exe.sig', '.msi.sig'] : ['.nsis.zip.sig', '.msi.zip.sig'];
+        for (const [index, extension] of priorities.entries()) {
+          if (signaturePath.endsWith(extension)) {
+            return 100 - index;
+          }
+        }
+        return 0;
+      }
+      signatureFiles.sort((a, b) => {
+        return signaturePriority(b.path) - signaturePriority(a.path);
+      });
+
+      const signatureFile = signatureFiles[0];
+      if (!signatureFile) {
+        console.warn(
+          'Signature not found for the updater JSON. Skipping upload...',
+        );
+        return;
+      }
+
+      const updaterName = basename(
+        signatureFile.assetName,
+        extname(signatureFile.assetName),
+      );
+      let downloadUrl = bundleAssets.find(
+        (asset) => asset.assetName == updaterName,
+      )?.downloadUrl;
+      if (!downloadUrl) {
+        console.warn('Asset not found for the updater JSON. Skipping upload...');
+        return;
+      }
+      // Untagged release downloads won't work after the release was published
+      downloadUrl = downloadUrl.replace(
+        /\/download\/(untagged-[^/]+)\//,
+        tagName ? `/download/${tagName}/` : '/latest/download/',
+      );
+
+      let os = targetInfo.platform as string;
+      if (os === 'macos') {
+        os = 'darwin';
+      }
+      console.log("sig file: " + JSON.stringify(signatureFile));
+      let arch = signatureFile.arch;
+      arch =
+        arch === 'amd64' || arch === 'x86_64' || arch === 'x64'
+          ? 'x86_64'
+          : arch === 'x86' || arch === 'i386'
+            ? 'i686'
+            : arch === 'arm'
+              ? 'armv7'
+              : arch === 'arm64'
+                ? 'aarch64'
+                : arch;
+
+      // Expected targets: https://github.com/tauri-apps/tauri/blob/fd125f76d768099dc3d4b2d4114349ffc31ffac9/core/tauri/src/updater/core.rs#L856
+      if (os === 'darwin' && arch === 'universal') {
+        // Don't overwrite native builds
+        if (!versionContent.platforms['darwin-aarch64']) {
+          (versionContent.platforms['darwin-aarch64'] as unknown) = {
+            signature: readFileSync(signatureFile.path).toString(),
+            url: downloadUrl,
+          };
+        }
+        if (!versionContent.platforms['darwin-x86_64']) {
+          (versionContent.platforms['darwin-x86_64'] as unknown) = {
+            signature: readFileSync(signatureFile.path).toString(),
+            url: downloadUrl,
+          };
+        }
+      }
+      if (updaterJsonKeepUniversal || os !== 'darwin' || arch !== 'universal') {
+        let index = `${os}-${arch}`;
+        if (bundleType.length > 0) {
+            index += `-${bundleType}`
+        }    
+        (versionContent.platforms[index] as unknown) = {
+          signature: readFileSync(signatureFile.path).toString(),
+          url: downloadUrl,
+        };
       }
   }
   
-  const signatureFiles = filteredAssets.filter((asset) => {
-    return asset.assetName.endsWith('.sig');
-  });
-  function signaturePriority(signaturePath: string) {
-    const priorities = updaterJsonPreferNsis
-      ? unzippedSig
-        ? ['.exe.sig', '.msi.sig']
-        : ['.nsis.zip.sig', '.msi.zip.sig']
-      : unzippedSig
-        ? ['.msi.sig', '.exe.sig']
-        : ['.msi.zip.sig', '.nsis.zip.sig'];
-    for (const [index, extension] of priorities.entries()) {
-      if (signaturePath.endsWith(extension)) {
-        return 100 - index;
-      }
-    }
-    return 0;
-  }
-  signatureFiles.sort((a, b) => {
-    return signaturePriority(b.path) - signaturePriority(a.path);
-  });
-
-  const signatureFile = signatureFiles[0];
-  if (!signatureFile) {
-    console.warn(
-      'Signature not found for the updater JSON. Skipping upload...',
-    );
-    return;
-  }
-
-  const updaterName = basename(
-    signatureFile.assetName,
-    extname(signatureFile.assetName),
-  );
-  let downloadUrl = filteredAssets.find(
-    (asset) => asset.assetName == updaterName,
-  )?.downloadUrl;
-  if (!downloadUrl) {
-    console.warn('Asset not found for the updater JSON. Skipping upload...');
-    return;
-  }
-  // Untagged release downloads won't work after the release was published
-  downloadUrl = downloadUrl.replace(
-    /\/download\/(untagged-[^/]+)\//,
-    tagName ? `/download/${tagName}/` : '/latest/download/',
-  );
-
-  let os = targetInfo.platform as string;
-  if (os === 'macos') {
-    os = 'darwin';
-  }
-  console.log("sig file: " + JSON.stringify(signatureFile));
-  let arch = signatureFile.arch;
-  arch =
-    arch === 'amd64' || arch === 'x86_64' || arch === 'x64'
-      ? 'x86_64'
-      : arch === 'x86' || arch === 'i386'
-        ? 'i686'
-        : arch === 'arm'
-          ? 'armv7'
-          : arch === 'arm64'
-            ? 'aarch64'
-            : arch;
-
-  // Expected targets: https://github.com/tauri-apps/tauri/blob/fd125f76d768099dc3d4b2d4114349ffc31ffac9/core/tauri/src/updater/core.rs#L856
-  if (os === 'darwin' && arch === 'universal') {
-    // Don't overwrite native builds
-    if (!versionContent.platforms['darwin-aarch64']) {
-      (versionContent.platforms['darwin-aarch64'] as unknown) = {
-        signature: readFileSync(signatureFile.path).toString(),
-        url: downloadUrl,
-      };
-    }
-    if (!versionContent.platforms['darwin-x86_64']) {
-      (versionContent.platforms['darwin-x86_64'] as unknown) = {
-        signature: readFileSync(signatureFile.path).toString(),
-        url: downloadUrl,
-      };
-    }
-  }
-  if (updaterJsonKeepUniversal || os !== 'darwin' || arch !== 'universal') {
-//    let index = `${os}-${arch}`;
-    
-    (versionContent.platforms[`${os}-${arch}`] as unknown) = {
-      signature: readFileSync(signatureFile.path).toString(),
-      url: downloadUrl,
-    };
-  }
 
   writeFileSync(versionFile, JSON.stringify(versionContent, null, 2));
 
