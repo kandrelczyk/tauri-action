@@ -8,6 +8,14 @@ export interface Application {
   wixLanguage: string | string[] | { [language: string]: unknown };
 }
 
+export interface Asset {
+    downloadUrl: string;
+    assetName: string;
+    path: string;
+    arch: string;
+    bundle: string;
+}
+
 export interface Artifact {
   path: string;
   name: string;
