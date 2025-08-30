@@ -125,7 +125,13 @@ export async function uploadVersionJSON(
 
   console.log("asstes by bundle deb: "+ JSON.stringify(assetsByBundle.get("deb")));
   console.log("asstes by bundle rpm: "+ JSON.stringify(assetsByBundle.get("rpm")));
-
+ 
+  for (const [bundle, value] of assetsByBundle) {
+      for (const bundleAsset of value) {
+        console.log("bundleAssets: " + bundle + " value: " + JSON.stringify(bundleAsset));
+      }
+  }
+  
   const signatureFiles = filteredAssets.filter((asset) => {
     return asset.assetName.endsWith('.sig');
   });
