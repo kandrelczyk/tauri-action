@@ -113,11 +113,15 @@ export async function uploadVersionJSON(
 
   const assetsByBundle = new Map<string, Asset[]>();
   for (const filteredAsset of filteredAssets) {
+      console.log("asset: " + JSON.stringify(filteredAsset));
       if (!assetsByBundle.has(filteredAsset.bundle)) {
+          console.log("set")
         assetsByBundle.set(filteredAsset.bundle, [filteredAsset])
       } else {
+          console.log("push")
           assetsByBundle.get(filteredAsset.bundle)?.push(filteredAsset);
       }
+      console.log("asstes by bundle: "+ JSON.stringify(assetsByBundle));
   }
 
   console.log("asstes by bundle: "+ JSON.stringify(assetsByBundle));
