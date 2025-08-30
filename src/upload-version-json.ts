@@ -121,10 +121,10 @@ export async function uploadVersionJSON(
           console.log("push")
           assetsByBundle.get(filteredAsset.bundle)?.push(filteredAsset);
       }
-      console.log("asstes by bundle: "+ JSON.stringify(assetsByBundle));
   }
 
-  console.log("asstes by bundle: "+ JSON.stringify(assetsByBundle));
+  console.log("asstes by bundle deb: "+ JSON.stringify(assetsByBundle.get("deb")));
+  console.log("asstes by bundle rpm: "+ JSON.stringify(assetsByBundle.get("rpm")));
 
   const signatureFiles = filteredAssets.filter((asset) => {
     return asset.assetName.endsWith('.sig');
