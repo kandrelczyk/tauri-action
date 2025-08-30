@@ -380,7 +380,31 @@ export async function buildProject(
       createArtifact({
         path: join(
           artifactsPath,
+          `bundle/deb/${app.name}_${app.version}_${debianArch}.deb.sig`,
+        ),
+        name: app.name,
+        debug,
+        platform: targetInfo.platform,
+        arch: debianArch,
+        bundle: 'deb',
+        version: app.version,
+      }),
+      createArtifact({
+        path: join(
+          artifactsPath,
           `bundle/rpm/${app.name}-${app.version}-${app.rpmRelease}.${rpmArch}.rpm`,
+        ),
+        name: app.name,
+        debug,
+        platform: targetInfo.platform,
+        arch: rpmArch,
+        bundle: 'rpm',
+        version: app.version,
+      }),
+      createArtifact({
+        path: join(
+          artifactsPath,
+          `bundle/rpm/${app.name}-${app.version}-${app.rpmRelease}.${rpmArch}.rpm.sig`,
         ),
         name: app.name,
         debug,
